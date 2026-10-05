@@ -1,0 +1,30 @@
+server:
+  # REST port (Currency Service is on 7771)
+  port: 7772
+
+spring:
+  application:
+    name: rng
+#  grpc:
+#    server:
+#      # Inter-service gRPC port (Scratch Card Engine -> RNG)
+#      port: 9090
+
+# Actuator — health + Prometheus metrics (the chi-square failure counter lands here)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.demorgs.rng: DEBUG
+
+rng:
+  chi-square:
+    significance: 0.05
+    check-interval: 100000
