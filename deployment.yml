@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment                  # runs and keeps alive the RNG pods
+metadata:
+  name: rng-deployment
+spec:
+  replicas: 1                     # how many pods (instances)
+  selector:
+    matchLabels:
+      app: rng-app
+  template:
+    metadata:
+      labels:
+        app: rng-app
+    spec:
+      containers:
+        - name: rng-app
+          image: andrei195/rng-app:latest   # image pushed by Jenkins
+          ports:
+            - containerPort: 7772           # port the app listens on inside the container
+          env:
+            # JVM may use 75% of the memory limit for heap (default is only 25%)
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=75"
+          resources:
+            requests:                       # guaranteed: used by K8s to pick a node
+              cpu: 250m
+              memory: 512Mi
+            limits:                         # maximum: above the memory limit the pod is killed (OOMKilled)
+              cpu: "1"
+              memory: 768Mi
+          startupProbe:                     # gives the JVM up to 60s to start before other probes run
+            httpGet:
+              path: /actuator/health/liveness
+              port: 7772
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:                    # "is the app alive?" fails 3 times -> K8s restarts the pod
+            httpGet:
+              path: /actuator/health/liveness
+              port: 7772
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:                   # "can it take traffic?" fails -> pod removed from the Service
+            httpGet:
+              path: /actuator/health/readiness
+              port: 7772
+            periodSeconds: 5
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service                     # one stable address in front of the pods
+metadata:
+  name: rng-service
+spec:
+  type: NodePort                  # reachable from outside the cluster (local / demo)
+  selector:
+    app: rng-app
+  ports:
+    - port: 7772                  # port inside the cluster
+      targetPort: 7772            # container port
+      nodePort: 30772             # port you use from outside: <node-ip>:30772

@@ -1,0 +1,32 @@
+server:
+  # REST port (Currency Service is on 7771)
+  port: 7772
+
+spring:
+  application:
+    name: rng
+
+# Actuator — health + Prometheus metrics (the chi-square failure counter lands here)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application:  ${spring.application.name}      # every metric gets application="rng"
+    distribution:
+      percentiles-histigram:
+        http.server.requests: true                  # enables p95/p99 latency in Grafana
+
+logging:
+  level:
+    com.demorgs.rng: DEBUG
+
+rng:
+  chi-square:
+    significance: 0.05
+    check-interval: 100000
